@@ -56,9 +56,18 @@ classdef SDFtest_vst < audioPlugin
     end
 
     methods
-        % contructor
-        function out = process(plugin,in)
-            out = in*plugin.Distance;
-        end
+       % ----contructor----
+       function plugin = SDFtest_vst
+           plugin@audioPlugin;
+       end
+       % ----main----
+       function out = process(plugin, in)
+           if plugin.SpectralDelay == true % when plugin is not bypassed
+               out = in*0.6;
+           else
+               out = in; % when bypassed
+           end
+       end
+       %------------
     end
 end
