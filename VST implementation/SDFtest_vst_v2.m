@@ -25,7 +25,7 @@ classdef SDFtest_vst_v2 < audioPlugin
             audioPluginParameter('Distance', ...
             'DisplayName', 'Distance', ...
             'Label', 'm', ...
-            'Mapping',{'log',0.1,3}, ...
+            'Mapping',{'log',0.1,10000}, ...
             'Style','hslider'), ...
             audioPluginParameter('DelayMode', ...
             'DisplayName', 'Delay Mode', ...
@@ -33,37 +33,38 @@ classdef SDFtest_vst_v2 < audioPlugin
             audioPluginParameter('Enable'))
     end
     properties (Access = private)
-        pFractionalDelay
+        pSpectralDelay
+        pSR % sample rate
     end
     methods
         % ----constructor----
         function plugin = SDFtest_vst_v2
-            plugin.pFractionalDelay = dsp.VariableFractionalDelay(...
-                'MaximumDelay',65000);
+            fs = getSampleRate(plugin);
+            plugin.pSpectralDelay = dsp.VariableFractionalDelay(...
+                'MaximumDelay',65000);           
+            plugin.pSR = fs;
         end
         % ----main----
         function out = process(plugin, in)
             % config
-            % fs = plugin.pSR;
+            fs = plugin.pSR;
             numSamples = size(in,1);
-            % delayInSamples = plugin.Distance*44100;
-            delaySamples = 100;
+            
+            delaySamples = round(plugin.Distance * fs / 340); % [samples]
+            delayVector = [delaySamples delaySamples*2];
 
-            [d1, d2] = size(in); % delayed vectors
-            delayVector = [20000 12000];
+            % main process
             if plugin.Enable
-                % out = step(plugin.pFractionalDelay, in);
-                % out = out*addDelay(plugin, in);
-                out = plugin.pFractionalDelay(in,delayVector);
-            else
+                out = plugin.pSpectralDelay(in,delayVector);
+            else % bypass
                 out = in;
             end
         end
         % ---reset----
         % when sampling rate changes
         function reset(plugin)
-            % plugin.pFractionalDelay.SampleRate = getSampleRate(plugin);
-            reset(plugin.pFractionalDelay);
+            % plugin.pSpectralDelay.SampleRate = getSampleRate(plugin);
+            reset(plugin.pSpectralDelay);
         end
         % ----parameter modification----
         % function set.Freq_F1(plugin,val)
@@ -82,8 +83,8 @@ classdef SDFtest_vst_v2 < audioPlugin
         %     plugin.Speed_F2 = val;
         %     plugin.mPEQ.PeakGains(3) = val;
         % end
-        % function y = addDelay(plugin)
-        %     y = plugin.Distance;
-        % end
+        function set.Distance (plugin, val)
+            plugin.Distance = val;
+        end
     end
 end

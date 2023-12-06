@@ -34,12 +34,14 @@ classdef SDFtest_vst_v2 < audioPlugin
     end
     properties (Access = private)
         pFractionalDelay
+        pSR % sample rate
     end
     methods
         % ----constructor----
         function plugin = SDFtest_vst_v2
             plugin.pFractionalDelay = dsp.VariableFractionalDelay(...
                 'MaximumDelay',65000);
+            pSR = 
         end
         % ----main----
         function out = process(plugin, in)
@@ -47,10 +49,10 @@ classdef SDFtest_vst_v2 < audioPlugin
             % fs = plugin.pSR;
             numSamples = size(in,1);
             % delayInSamples = plugin.Distance*44100;
-            delaySamples = 100;
+            delaySamples = round(distance * Fs / 4000);
 
             [d1, d2] = size(in); % delayed vectors
-            delayVector = ;
+            delayVector = [20000 12000];
             if plugin.Enable
                 % out = step(plugin.pFractionalDelay, in);
                 % out = out*addDelay(plugin, in);
