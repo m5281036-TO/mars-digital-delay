@@ -34,6 +34,7 @@ classdef SDFtest_vst_v2 < audioPlugin
     end
     properties (Access = private)
         pSpectralDelay
+        pOctFiltBank
         pSR % sample rate
     end
     methods
@@ -41,21 +42,36 @@ classdef SDFtest_vst_v2 < audioPlugin
         function plugin = SDFtest_vst_v2
             fs = getSampleRate(plugin);
             plugin.pSpectralDelay = dsp.VariableFractionalDelay(...
-                'MaximumDelay',65000);           
+                'MaximumDelay',65000);
+
+            % ----ocatave filter bank----
+            plugin.pOctFiltBank = octaveFilterBank('SampleRate', 441000, FrequencyRange=[18 22000]);
+            % ------------
+
             plugin.pSR = fs;
         end
         % ----main----
         function out = process(plugin, in)
             % config
             fs = plugin.pSR;
-            numSamples = size(in,1);
+            inMono = sum(in,2)/2; % set input signal to mono
             
+            % ocatave filtering
+            filterOut = plugin.pOctFiltBank(inMono);
+            [N, numFilters, numChannels] = size(filterOut);
+
+            
+
+            % ----delaying the signal here----
             delaySamples = round(plugin.Distance * fs / 340); % [samples]
-            delayVector = [delaySamples delaySamples*2];
+            delayVector = [delaySamples delaySamples]; %
+            %--------------
 
             % main process
             if plugin.Enable
-                out = plugin.pSpectralDelay(in,delayVector);
+                %out = plugin.pSpectralDelay(in,delayVector);
+                num = round (plugin.Distance);
+                out = filterOut(:,num,:);
             else % bypass
                 out = in;
             end
