@@ -100,7 +100,7 @@ classdef SDFtest_vst_v2 < audioPlugin
         function delayOut = delaySignal(~,in,frameSize,delaySamples,numFilters,i)
             
             %buffer sizeの定義
-            buffSize = 1000000;
+            buffSize = 10000;
 
             if delaySamples > buffSize - frameSize % delay samples must not exceed frame size
                 delaySamples = buffSize - frameSize;
@@ -110,6 +110,7 @@ classdef SDFtest_vst_v2 < audioPlugin
             persistent buff
 
             % buffの初期化 numFiltersの数だけbuffを用意する
+            % numFiltersの数だけbuffを用意する
             if isempty(buff)
                 buff = zeros(buffSize,numFilters);
             end

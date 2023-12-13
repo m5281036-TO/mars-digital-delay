@@ -1,4 +1,4 @@
-classdef SDFtest_vst_v2 < audioPlugin
+classdef delayTest < audioPlugin
     properties
         Freq_F1 = sqrt(20*500)
         Speed_F1 = 0
@@ -39,7 +39,7 @@ classdef SDFtest_vst_v2 < audioPlugin
     end
     methods
         % ----constructor----
-        function plugin = SDFtest_vst_v2
+        function plugin = delayTest
             plugin.pSR = getSampleRate(plugin);
             fs = plugin.pSR;
             plugin.pFractionalDelay = dsp.VariableFractionalDelay(...
@@ -55,73 +55,87 @@ classdef SDFtest_vst_v2 < audioPlugin
             % config
             fs = plugin.pSR;
             frameSize = length(in);
-            
+
             % set input signal to mono
             inMono = sum(in,2)/2;
-            
-            % octave filterring
-            inFiltered = plugin.pOctFiltBank(inMono);
-            [~, numFilters, ~] = size(inFiltered); % [number of samples, number of bands, number of channels]
-             
-            % initialize inDelayFiltered
-            inDelayFiltered = zeros(size(inFiltered));
 
-            % ----delay signal----
-            for i = 1 : numFilters
-                % inDelayFiltered = delaySignal(plugin,inMono,frameSize);
-                delaySamples = i * round(plugin.Distance);
-                inDelayFiltered(:,i,:) = delaySignal(plugin,inFiltered(:,i,:),frameSize,delaySamples,numFilters,i);
-            end
-            %---------------------
 
-            % ----reconstract audio----
-            reconstructedAudio = squeeze(sum(inDelayFiltered, 2));
-            % reconstructedAudio = reconstructedAudio/max(abs(reconstructedAudio(:))); % normalization
-            % -------------------------
+            % % ----delay----
+            % % define the number of delay samples
+            % delaySamples = round(plugin.Distance * 10);
+            % 
+            % %buffer sizeの定義
+            % buffSize = 10000;
+            % 
+            % if delaySamples > buffSize % delay samples must not exceed frame size
+            %     delaySamples = buffSize - frameSize;
+            % end
+            % 
+            % %永続変数としてbuffを定義
+            % persistent buff
+            % 
+            % %buffの初期化
+            % if isempty(buff)
+            %     buff = zeros(buffSize,1);
+            % end
+            % 
+            % %buffをframe_size分動かす
+            % buff(frameSize+1:buffSize)=buff(1:buffSize-frameSize);
+            % 
+            % %現在の入力信号をbuffの先頭に保存
+            % buff(1:frameSize)=flip(inMono);
+            % 
+            % %tサンプル前の音を取り出す
+            % inDelayed = flip(buff(delaySamples+1:delaySamples+frameSize));
+            % 
+            % % -------------------------
 
             % ----main process----
             if plugin.Enable
-                out = reconstructedAudio;
+                % out = reconstructedAudio;
+                out = delaySignal(plugin,inMono,frameSize)*0.6 + inMono*0.4;
             else % bypass
                 out = in;
             end
             % --------------------
         end
 
-        % ----reset----
+        % ---reset----
         % when sampling rate changes
         function reset(plugin)
             % plugin.pFractionalDelay.SampleRate = getSampleRate(plugin);
             reset(plugin.pFractionalDelay);
         end
-        % ----reset end----
 
         %----delay function----
-        function delayOut = delaySignal(~,in,frameSize,delaySamples,numFilters,i)
-            
-            %buffer sizeの定義
-            buffSize = 1000000;
+        function delayOut = delaySignal(plugin,in,frameSize)
+            delaySamples = round(plugin.Distance * 10);
 
-            if delaySamples > buffSize - frameSize % delay samples must not exceed frame size
+            %buffer sizeの定義
+            buffSize = 10000;
+
+            if delaySamples > buffSize % delay samples must not exceed frame size
                 delaySamples = buffSize - frameSize;
             end
 
             %永続変数としてbuffを定義
             persistent buff
 
-            % buffの初期化 numFiltersの数だけbuffを用意する
+            %buffの初期化
             if isempty(buff)
-                buff = zeros(buffSize,numFilters);
+                buff = zeros(buffSize,1);
             end
 
             %buffをframe_size分動かす
-            buff(frameSize+1:buffSize,i)=buff(1:buffSize-frameSize,i);
+            buff(frameSize+1:buffSize)=buff(1:buffSize-frameSize);
 
             %現在の入力信号をbuffの先頭に保存
-            buff(1:frameSize,i)=flip(in);
+            buff(1:frameSize)=flip(in);
 
             %tサンプル前の音を取り出す
-            delayOut = flip(buff(delaySamples+1:delaySamples+frameSize,i));
+            inDelayed = flip(buff(delaySamples+1:delaySamples+frameSize));
+
+            delayOut = inDelayed;
         end
         % ----delay end----
 
