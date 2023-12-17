@@ -1,11 +1,11 @@
 classdef SDFtest_vst_v2 < audioPlugin
     properties
-        Freq_F1 = sqrt(20*500)
-        Speed_F1 = 0
-        Freq_F2 = sqrt(3e3*20e3)
-        Speed_F2 = 0
+        Freq_F1 = 80
+        Speed_F1 = 120
+        Freq_F2 = 4000
+        Speed_F2 = 680
         Distance = 1
-        DelayMode = 'Linear'
+        DelayMode = OperatingMode.linear
         Enable = true
     end
     properties (Constant)
@@ -15,13 +15,13 @@ classdef SDFtest_vst_v2 < audioPlugin
             'Mapping',{'log',20,2200}), ...
             audioPluginParameter('Speed_F1', ...
             'Label','m/s', ...
-            'Mapping',{'lin',-20,20}), ...
+            'Mapping',{'lin',120,1200}), ...
             audioPluginParameter('Freq_F2', ...
             'Label','Hz', ...
             'Mapping',{'log',2201,22000}), ...
             audioPluginParameter('Speed_F2', ...
             'Label','m/s', ...
-            'Mapping',{'lin',-20,20}), ...
+            'Mapping',{'lin',120,1200}), ...
             audioPluginParameter('Distance', ...
             'DisplayName', 'Distance', ...
             'Label', 'm', ...
@@ -43,43 +43,45 @@ classdef SDFtest_vst_v2 < audioPlugin
             plugin.pSR = getSampleRate(plugin);
             fs = plugin.pSR;
             
-            % ocatave filter bank
+            % filtering via ocatave filter bank
             plugin.pOctFiltBank = octaveFilterBank('SampleRate', fs, FrequencyRange=[18 22000]);
         end
         % ----------------------------
 
         % --------main function--------
         function out = process(plugin, in)
-            % config
+            % get sample rate and frame size
             fs = plugin.pSR;
             frameSize = length(in);
 
-            mode = plugin.DelayMode;
+            % config
             speed1 = plugin.Speed_F1;
             speed2 = plugin.Speed_F2;
             dist = plugin.Distance;
+            modeNum = getOperatingnMode(plugin);
             
             % set input signal to mono
             inMono = sum(in,2)/2;
             
-            % octave filterring
+            % octave filtering
             inFiltered = plugin.pOctFiltBank(inMono);
             [~, numFilters, ~] = size(inFiltered); % [number of samples, number of bands, number of channels]
              
-            % initialize inDelayFiltered
+            % initialize array for filtered & delayed input
             inDelayFiltered = zeros(size(inFiltered));
 
             % --------delay signal in each channel--------
             for i = 1 : numFilters
                 % delaySamples = i * round(plugin.Distance);
-                delaysSamples = getDelaySamples(plugin,numFilters,mode,speed1,speed2,dist,i);
+                delaySamples = getDelaySamples(plugin,fs,numFilters,speed1,speed2,dist,modeNum,i);
                 inDelayFiltered(:,i,:) = delaySignal(plugin,inFiltered(:,i,:),frameSize,delaySamples,numFilters,i);
             end
             %---------------------------------------------
 
             % --------reconstract audio--------
             reconstructedAudio = squeeze(sum(inDelayFiltered, 2));
-            % reconstructedAudio = reconstructedAudio/max(abs(reconstructedAudio(:))); % normalization
+            % normalization
+            reconstructedAudio = reconstructedAudio/max(abs(reconstructedAudio(:)));
             % ---------------------------------
 
             % --------main process---------
@@ -94,8 +96,10 @@ classdef SDFtest_vst_v2 < audioPlugin
 
         % --------reset when sampling rate changes--------
         function reset(plugin)
-            % plugin.pFractionalDelay.SampleRate = getSampleRate(plugin);
-            % reset(plugin.pFractionalDelay);
+            fs = getSampleRate(plugin);
+            plugin.pSR = fs;
+            plugin.pOctFiltBank.SampleRate = getSampleRate(plugin);
+            reset(plugin.pOctFiltBank);
         end
         % ------------------------------------------------
 
@@ -127,15 +131,36 @@ classdef SDFtest_vst_v2 < audioPlugin
             delayOut = flip(buff(delaySamples+1:delaySamples+frameSize,i));
         end
         % ------------------------------
-        % ----get value of delaySamples for each band----
-        function s = getDelaySamples(plugin,numFilters,mode,speed1,speed2,dist,i)
-            if mode == 'linear'
-                s = dist / abs(speed1-speed2) / numFilters * i * fs;
+
+        % --------get value of delaySamples for each band--------
+        function s = getDelaySamples(~,fs,numFilters,speed1,speed2,dist,mode,i)
+            if mode == 0 % linear
+                s = round(dist / abs(speed1-speed2) / numFilters * i * fs);
+            elseif mode == 1 % logarithmic
+                s = round(dist / abs(speed1-speed2) / numFilters * i * fs);
+            elseif mode == 3 % stepwise
+                if i <= numFilters/2
+                    s = round(dist / abs(speed1-speed2) / numFilters * i * fs);
+                else
+                    
+                end
             end
-        else
         end
-        
-            %--------------------------------------------
+        %----------------------------------------------------
+
+        % --------get DelayMode from 'OpreratingMode.m'--------
+        function modeNum = getOperatingnMode(plugin)
+            if plugin.DelayMode == OperatingMode.linear
+                modeNum = 0;
+            elseif plugin.DelayMode == OperatingMode.logarithmic
+                modeNum = 1;
+            elseif plugin.DelayMode == OperatingMode.sigmoid
+                modeNum = 2;
+            elseif plugin.DelayMode == OperatingMode.stepwise
+                modeNum = 3;
+            end
+        end
+        % -----------------------------------------------------
         
 
         % --------parameter modification--------
