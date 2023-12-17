@@ -1,9 +1,9 @@
 classdef SDFtest_vst_v2 < audioPlugin
     properties
-        Freq_F1 = 80
-        Speed_F1 = 120
-        Freq_F2 = 4000
-        Speed_F2 = 680
+        Freq_F1 = sqrt(20*500)
+        Speed_F1 = 0
+        Freq_F2 = sqrt(3e3*20e3)
+        Speed_F2 = 0
         Distance = 1
         DelayMode = 'Linear'
         Enable = true
@@ -15,13 +15,13 @@ classdef SDFtest_vst_v2 < audioPlugin
             'Mapping',{'log',20,2200}), ...
             audioPluginParameter('Speed_F1', ...
             'Label','m/s', ...
-            'Mapping',{'lin',120,1200}), ...
+            'Mapping',{'lin',-20,20}), ...
             audioPluginParameter('Freq_F2', ...
             'Label','Hz', ...
             'Mapping',{'log',2201,22000}), ...
             audioPluginParameter('Speed_F2', ...
             'Label','m/s', ...
-            'Mapping',{'lin',120,1200}), ...
+            'Mapping',{'lin',-20,20}), ...
             audioPluginParameter('Distance', ...
             'DisplayName', 'Distance', ...
             'Label', 'm', ...
@@ -72,7 +72,7 @@ classdef SDFtest_vst_v2 < audioPlugin
             % --------delay signal in each channel--------
             for i = 1 : numFilters
                 % delaySamples = i * round(plugin.Distance);
-                delaySamples = getDelaySamples(plugin,fs,numFilters,mode,speed1,speed2,dist,i);
+                delaysSamples = getDelaySamples(plugin,numFilters,mode,speed1,speed2,dist,i);
                 inDelayFiltered(:,i,:) = delaySignal(plugin,inFiltered(:,i,:),frameSize,delaySamples,numFilters,i);
             end
             %---------------------------------------------
@@ -127,16 +127,15 @@ classdef SDFtest_vst_v2 < audioPlugin
             delayOut = flip(buff(delaySamples+1:delaySamples+frameSize,i));
         end
         % ------------------------------
-
         % ----get value of delaySamples for each band----
-        function s = getDelaySamples(~,fs,numFilters,mode,speed1,speed2,dist,i)
-            if mode
-                s = round(dist / abs(speed1-speed2) / numFilters * i * fs);
-            else
+        function s = getDelaySamples(plugin,numFilters,mode,speed1,speed2,dist,i)
+            if mode == 'linear'
+                s = dist / abs(speed1-speed2) / numFilters * i * fs;
             end
+        else
         end
-
-        %--------------------------------------------
+        
+            %--------------------------------------------
         
 
         % --------parameter modification--------
@@ -157,12 +156,3 @@ classdef SDFtest_vst_v2 < audioPlugin
         % end
     end
 end
-% 
-% classdef OperatingMode < int8
-%     enumeration
-%         boost (0)
-%         cut   (1)
-%         mute  (2)
-%         noise (3)
-%     end
-% end
