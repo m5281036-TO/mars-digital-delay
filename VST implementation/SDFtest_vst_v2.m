@@ -33,24 +33,22 @@ classdef SDFtest_vst_v2 < audioPlugin
             audioPluginParameter('Enable'))
     end
     properties (Access = private)
-        pFractionalDelay
+        pSR
         pOctFiltBank
-        pSR % sample rate
     end
     methods
-        % ----constructor----
+        % --------constructor---------
         function plugin = SDFtest_vst_v2
+            % get sample rate of input
             plugin.pSR = getSampleRate(plugin);
             fs = plugin.pSR;
-            plugin.pFractionalDelay = dsp.VariableFractionalDelay(...
-                'MaximumDelay',4000);
-
-            % ----ocatave filter bank----
+            
+            % ocatave filter bank
             plugin.pOctFiltBank = octaveFilterBank('SampleRate', fs, FrequencyRange=[18 22000]);
-            % ------------
         end
+        % ----------------------------
 
-        % ----main----
+        % --------main function--------
         function out = process(plugin, in)
             % config
             fs = plugin.pSR;
@@ -66,41 +64,40 @@ classdef SDFtest_vst_v2 < audioPlugin
             % initialize inDelayFiltered
             inDelayFiltered = zeros(size(inFiltered));
 
-            % ----delay signal----
+            % --------delay signal in each channel--------
             for i = 1 : numFilters
                 % inDelayFiltered = delaySignal(plugin,inMono,frameSize);
                 delaySamples = i * round(plugin.Distance);
                 inDelayFiltered(:,i,:) = delaySignal(plugin,inFiltered(:,i,:),frameSize,delaySamples,numFilters,i);
             end
-            %---------------------
+            %---------------------------------------------
 
-            % ----reconstract audio----
+            % --------reconstract audio--------
             reconstructedAudio = squeeze(sum(inDelayFiltered, 2));
             % reconstructedAudio = reconstructedAudio/max(abs(reconstructedAudio(:))); % normalization
-            % -------------------------
+            % ---------------------------------
 
-            % ----main process----
+            % --------main process---------
             if plugin.Enable
                 out = reconstructedAudio;
             else % bypass
                 out = in;
             end
-            % --------------------
+            % -----------------------------
         end
 
-        % ----reset----
-        % when sampling rate changes
+        % --------reset when sampling rate changes--------
         function reset(plugin)
             % plugin.pFractionalDelay.SampleRate = getSampleRate(plugin);
-            reset(plugin.pFractionalDelay);
+            % reset(plugin.pFractionalDelay);
         end
-        % ----reset end----
+        % ------------------------------------------------
 
-        %----delay function----
+        % --------delay function--------
         function delayOut = delaySignal(~,in,frameSize,delaySamples,numFilters,i)
             
             %buffer sizeの定義
-            buffSize = 1000000;
+            buffSize = 661500; % maximum 15sec in fs=44100
 
             if delaySamples > buffSize - frameSize % delay samples must not exceed frame size
                 delaySamples = buffSize - frameSize;
@@ -123,9 +120,9 @@ classdef SDFtest_vst_v2 < audioPlugin
             %tサンプル前の音を取り出す
             delayOut = flip(buff(delaySamples+1:delaySamples+frameSize,i));
         end
-        % ----delay end----
+        % ------------------------------
 
-        % ----parameter modification----
+        % --------parameter modification--------
         % function set.Freq_F1(plugin,val)
         %     plugin.Freq_F1 = val;
         %     plugin.mPEQ.Frequencies(1) = val; %#ok<*MCSUP>
