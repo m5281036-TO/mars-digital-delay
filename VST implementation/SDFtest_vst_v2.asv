@@ -53,6 +53,9 @@ classdef SDFtest_vst_v2 < audioPlugin
             % filtering via ocatave filter bank
             plugin.pOctFiltBank = octaveFilterBank("1 octave", fs, ...
                 FrequencyRange=[20 22000]);
+            
+            % center freq. of each band in octave filter bank
+            % plugin.pCf = getCenterFrequencies(plugin.pOctFiltBank);
         end
         % ----------------------------
 
@@ -79,9 +82,7 @@ classdef SDFtest_vst_v2 < audioPlugin
             % --------octave filtering--------
             inFiltered = plugin.pOctFiltBank(inMono);
             [~, numFilters, ~] = size(inFiltered); % [number of samples, number of bands, number of channels]
-            
-            % center freq. of each band in octave filter bank
-            cf = getCenterFrequencies(plugin.pOctFiltBank);
+            cf = plugin.pCf;
             % --------------------------------
 
 
