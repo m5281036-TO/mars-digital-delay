@@ -107,10 +107,9 @@ classdef SDFtest_vst_v2 < audioPlugin
 
             % --------output signal---------
             if plugin.Enable
-                % if plugin.Freq_F1 > 120
-                out = reconstructedAudio;
+                out = [reconstructedAudio reconstructedAudio];
             else % bypass
-                out = in;
+                out = [inMono inMono];
             end
             % -------------------------------
         end
