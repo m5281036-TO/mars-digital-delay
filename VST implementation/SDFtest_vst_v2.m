@@ -110,7 +110,7 @@ classdef SDFtest_vst_v2 < audioPlugin
             reconstructedAudio = squeeze(sum(inDelayFiltered, 2));
 
             % normalization
-            % valreconstructedAudio = reconstructedAudio * (oRMS / rms(reconstructedAudio));
+            % normalizedAudio = normalizeSignal(plugin,reconstructedAudio);
             % ---------------------------------
 
 
@@ -224,11 +224,11 @@ classdef SDFtest_vst_v2 < audioPlugin
         %----------------------------------------------------
 
 
-        % --------get center freq. of each band of pOctaveFilterBank--------
-        % function cf = getCenterFreqOfEachBands(plugin)
-        %     cf = round(getCenterFrequencies(plugin.pOctFiltBank));
-        % end
-        % ------------------------------------------------------------------
+        % --------signal normalize--------
+        function normalizedAudio = normalizeSignal(~,in)
+            normalizedAudio = in * max(abs(in));
+        end
+        % --------------------------------
 
 
         % --------get DelayMode from 'OpreratingMode.m'--------
