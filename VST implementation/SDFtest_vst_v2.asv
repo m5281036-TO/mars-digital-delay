@@ -106,7 +106,7 @@ classdef SDFtest_vst_v2 < audioPlugin
             reconstructedAudio = squeeze(sum(inDelayFiltered, 2));
             
             % normalization
-            reconstructedAudio = reconstructedAudio * (oRMS / rms(reconstructedAudio));
+            reconstructedAudio = reconstructedAudio * (rms(reconstructedAudio)/oRMS);
             % ---------------------------------
 
 
@@ -138,7 +138,7 @@ classdef SDFtest_vst_v2 < audioPlugin
         function delayOut = delaySignal(~,in,frameSize,delaySamples,numFilters,i)
 
             %buffer sizeの定義
-            buffSize = 20000;
+            buffSize = 10000; % maximum = 15sec in fs=44100
 
             if delaySamples > buffSize - frameSize % delay samples must not exceed frame size
                 delaySamples = buffSize - frameSize;
