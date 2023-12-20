@@ -27,7 +27,7 @@ classdef SDFtest_vst_v2 < audioPlugin
             audioPluginParameter('Distance', ...
             'DisplayName', 'Distance', ...
             'Label', 'm', ...
-            'Mapping',{'log',0.1,10000}, ...
+            'Mapping',{'log',0.1,4000}, ...
             'Style','hslider'), ...
             audioPluginParameter('DelayMode', ...
             'DisplayName', 'Delay Mode', ...
@@ -63,7 +63,7 @@ classdef SDFtest_vst_v2 < audioPlugin
         function out = process(plugin, in)
             % get sampling rate
             fs = plugin.pSR;
-            
+
             % size(in) = [frame_length number_of_channels]
             frameSize = size(in,1);
             numChannels = size(in, 2);
@@ -85,7 +85,7 @@ classdef SDFtest_vst_v2 < audioPlugin
             % --------octave filtering--------
             inFiltered = plugin.pOctFiltBank(inMono);
             [~, numFilters, ~] = size(inFiltered); % [number of samples, number of bands, number of channels]
-            
+
             % center freq. of each band in octave filter bank
             cf = getCenterFrequencies(plugin.pOctFiltBank);
             % --------------------------------
@@ -108,7 +108,7 @@ classdef SDFtest_vst_v2 < audioPlugin
             % --------reconstract audio--------
             % reconstruction
             reconstructedAudio = squeeze(sum(inDelayFiltered, 2));
-            
+
             % normalization
             % valreconstructedAudio = reconstructedAudio * (oRMS / rms(reconstructedAudio));
             % ---------------------------------
@@ -125,7 +125,7 @@ classdef SDFtest_vst_v2 < audioPlugin
         % ----------------------------------------
         % main function end
         % ----------------------------------------
-        
+
 
 
         % --------reset when sampling rate changes--------
@@ -141,8 +141,8 @@ classdef SDFtest_vst_v2 < audioPlugin
         % --------delay function--------
         function delayOut = delaySignal(~,in,frameSize,delaySamples,numFilters,i)
 
-            % define buffSize for muximum buffer
-            buffSize = 60000;
+            % define buffSize -- this affects maximum size of delaySamples
+            buffSize = 100000; % 500000 samples ≈
 
             % make sure that delaySamples does not exceed frameSize
             if delaySamples > buffSize - frameSize
@@ -168,7 +168,7 @@ classdef SDFtest_vst_v2 < audioPlugin
         end
         % ------------------------------
 
-        
+
         % --------get value of delaySamples for each band--------
         function s = getDelaySamples(~,fs,numFilters,speed1,speed2,freq1,freq2,dist,modeNum,iCf,i)
             % initilize output
@@ -177,7 +177,7 @@ classdef SDFtest_vst_v2 < audioPlugin
             % bypass -- when freq1 and freq2 is at the smaepotion, s is constant in each filter channel
             if freq1 == freq2
                 s = round(dist / speed1 * fs);
-            
+
             else % when speed1 ~= speed2
                 % linear
                 if modeNum == 0
@@ -206,10 +206,17 @@ classdef SDFtest_vst_v2 < audioPlugin
                 elseif modeNum == 4
                     if iCf >= median([freq1 freq2])
                         if freq1 >= freq2
-                        s = round(dist / max(speed1,speed2) * fs); % fit to the larger speed
+                            s = round(dist / speed1 * fs); % fit to the speed of the higher frequency
+                        else
+                            s = round(dist / speed2 * fs); % fit to the speed of the lower frequency
+                        end
                     else % iCf < median([freq1 freq2])
-                        % s = round(dist / min(speed1,speed2) * fs); % fit to the smaller speed
-                        s = round(dist / speed2 * fs);
+                        if freq1 >= freq2
+                            s = round(dist / speed2 * fs); % fit to the speed of the lower frequency
+                        else
+                            s = round(dist / speed1 * fs); % fit to the speed of the higher frequency
+                        end
+
                     end
                 end
 

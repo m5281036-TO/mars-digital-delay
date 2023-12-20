@@ -27,7 +27,7 @@ classdef SDFtest_vst_v2 < audioPlugin
             audioPluginParameter('Distance', ...
             'DisplayName', 'Distance', ...
             'Label', 'm', ...
-            'Mapping',{'log',0.1,10000}, ...
+            'Mapping',{'log',0.1,4000}, ...
             'Style','hslider'), ...
             audioPluginParameter('DelayMode', ...
             'DisplayName', 'Delay Mode', ...
@@ -141,8 +141,8 @@ classdef SDFtest_vst_v2 < audioPlugin
         % --------delay function--------
         function delayOut = delaySignal(~,in,frameSize,delaySamples,numFilters,i)
 
-            % define buffSize for muximum buffer
-            buffSize = 60000;
+            % define buffSize -- this affects maximum size of delaySamples
+            buffSize = 100000; % ≈ 2.26sec
 
             % make sure that delaySamples does not exceed frameSize
             if delaySamples > buffSize - frameSize
@@ -216,7 +216,6 @@ classdef SDFtest_vst_v2 < audioPlugin
                         else
                             s = round(dist / speed1 * fs); % fit to the speed of the higher frequency
                         end
-
                     end
                 end
 
