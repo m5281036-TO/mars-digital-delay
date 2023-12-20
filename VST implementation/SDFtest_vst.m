@@ -1,6 +1,6 @@
-classdef SDFtest_vst < audioPlugin
+classdef SDFtest_vst < audioPlugin & matlab.System
     properties
-        SpectralDelay = true; % effect on/off
+        BYPASS = false; % effect on/off
         F1_Freq = 500; F2_Freq = 2000; % (Hz)
         F1_SoS = 340; F2_SoS = 500; % speed of sound (m/s)
         Distance = 1 %(m)
@@ -39,14 +39,14 @@ classdef SDFtest_vst < audioPlugin
             audioPluginParameter('Distance', ...
             'DisplayName', 'Distance', ...
             'Label', 'm', ...
-            'Mapping',{'log',1,5000}, ...
+            'Mapping',{'log',0.1,5000}, ...
             'Style','vslider', ...
             'Layout',[1,4]), ...
             audioPluginParameter('DelayMode', ...
             'DisplayName', 'Delay Mode', ...
             'Mapping',{'enum','Linear', 'Logarithmic', 'Sigmoid', 'Stepwise'}, ...
             'Layout',[1,5]), ...
-            audioPluginParameter('SpectralDelay', ...
+            audioPluginParameter('BYPASS', ...
             'Style','vtoggle', ...
             'Layout',[3,4;3,5]), ...
             audioPluginGridLayout( ...
@@ -54,20 +54,40 @@ classdef SDFtest_vst < audioPlugin
             'ColumnWidth',[140,140,40,140,140]) ...
             );
     end
-
+    % ----private property----
+    % user can't control here
+    properties (Access=private)
+        objFilterDelay;
+    end
+    
     methods
-       % ----contructor----
-       function plugin = SDFtest_vst
-           plugin@audioPlugin;
-       end
-       % ----main----
-       function out = process(plugin, in)
-           if plugin.SpectralDelay == true % when plugin is not bypassed
-               out = in*0.6;
-           else
-               out = in; % when bypassed
-           end
-       end
-       %------------
+        % ----contructor----
+        function plugin = SDFtest_vst
+            plugin@audioPlugin;
+            
+            plugin.objFilterDelay = multibandParametricEQ('NumEQBands',3,'EQOrder',4, ...
+                'HasLowShelfFilter',0,'HasHighShelfFilter',0,'HasLowpassFilter',0,'HasHighpassFilter',0, ...
+                'Frequencies',[400, 1000, 5000],'PeakGains',ones(1,3)*0,'QualityFactors',ones(1,3)*1.6,'SampleRate',getSampleRate(plugin));
+        end
+        % ----main----
+        function out = process(plugin,in)
+            if plugin.BYPASS ~= true % when plugin is not bypassed
+                out = step(plugin.objFilterDelay,in);
+                %out = in;
+            else
+                out = in; % when bypassed
+            end
+        end
+        % ----modify parameters----
+        function set.Distance(plugin,val)
+            plugin.Distance = val;
+            plugin.objFilterDelay.Frequencies(1) = val;
+        end
+        % ----reset plugin----
+        % when sampling rate is changed
+        % function reset(plugin)
+        %     plugin.objFilterDelay.SampleRate = getSampleRate(plugin);
+        %     reset(plugin.objFilterDelay);
+        % end
     end
 end
