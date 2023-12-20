@@ -1,8 +1,8 @@
 classdef SDFtest_vst_v2 < audioPlugin
     properties
-        Freq_F1 = 80;
-        Speed_F1 = 120;
-        Freq_F2 = 4000;
+        Freq_F1 = 200;
+        Speed_F1 = 340;
+        Freq_F2 = 2000;
         Speed_F2 = 680;
         Distance = 50;
         DelayMode = OperatingMode.linear;
@@ -61,9 +61,12 @@ classdef SDFtest_vst_v2 < audioPlugin
         % main function
         % ----------------------------------------
         function out = process(plugin, in)
-            % get sample rate and frame size
+            % get sampling rate
             fs = plugin.pSR;
-            frameSize = length(in);
+
+            % size(in) = [frame_length number_of_channels]
+            frameSize = size(in,1);
+            numChannels = size(in, 2);
 
             % config
             speed1 = plugin.Speed_F1;
@@ -74,39 +77,40 @@ classdef SDFtest_vst_v2 < audioPlugin
             modeNum = getOperatingnMode(plugin);
 
 
-            % set input signal to mono
-            inMono = sum(in,2)/2;
+            % set input signal to monoral
+            inMono = sum(in,numChannels)/numChannels;
             oRMS = rms(inMono);
 
 
             % --------octave filtering--------
             inFiltered = plugin.pOctFiltBank(inMono);
             [~, numFilters, ~] = size(inFiltered); % [number of samples, number of bands, number of channels]
-            
+
             % center freq. of each band in octave filter bank
             cf = getCenterFrequencies(plugin.pOctFiltBank);
             % --------------------------------
 
 
-            % initialize array for filtered & delayed input
+            % initialize array for filtered & delayed input signal
             inDelayFiltered = zeros(size(inFiltered));
 
 
             % --------delay signal in each channel--------
             for i = 1 : numFilters
                 % delaySamples = i * round(plugin.Distance);
-                delaySamples = getDelaySamples(plugin,fs,numFilters,speed1,speed2,freq1,freq2,dist,modeNum,cf,i);
+                delaySamples = getDelaySamples(plugin,fs,numFilters,speed1,speed2,freq1,freq2,dist,modeNum,cf(i),i);
                 inDelayFiltered(:,i,:) = delaySignal(plugin,inFiltered(:,i,:),frameSize,delaySamples,numFilters,i);
             end
+
             %---------------------------------------------
 
 
             % --------reconstract audio--------
             % reconstruction
             reconstructedAudio = squeeze(sum(inDelayFiltered, 2));
-            
+
             % normalization
-            reconstructedAudio = reconstructedAudio * (oRMS / rms(reconstructedAudio));
+            % valreconstructedAudio = reconstructedAudio * (oRMS / rms(reconstructedAudio));
             % ---------------------------------
 
 
@@ -121,7 +125,7 @@ classdef SDFtest_vst_v2 < audioPlugin
         % ----------------------------------------
         % main function end
         % ----------------------------------------
-        
+
 
 
         % --------reset when sampling rate changes--------
@@ -137,68 +141,85 @@ classdef SDFtest_vst_v2 < audioPlugin
         % --------delay function--------
         function delayOut = delaySignal(~,in,frameSize,delaySamples,numFilters,i)
 
-            %buffer sizeの定義
-            buffSize = 20000;
+            % define buffSize for muximum buffer
+            buffSize = 60000;
 
-            if delaySamples > buffSize - frameSize % delay samples must not exceed frame size
+            % make sure that delaySamples does not exceed frameSize
+            if delaySamples > buffSize - frameSize
                 delaySamples = buffSize - frameSize;
             end
 
-            %永続変数としてbuffを定義
+            % define buff as persistent variable
             persistent buff
 
-            % buffの初期化 numFiltersの数だけbuffを用意する
+            % initialize buff -- prepare buff as many as numFilters
             if isempty(buff)
                 buff = zeros(buffSize,numFilters);
             end
 
-            %buffをframe_size分動かす
+            % move buff for the size of frameSize
             buff(frameSize+1:buffSize,i)=buff(1:buffSize-frameSize,i);
 
-            %現在の入力信号をbuffの先頭に保存
+            % save current input signal at the front of buff
             buff(1:frameSize,i)=flip(in);
 
-            %tサンプル前の音を取り出す
+            % extract the signal t samples before
             delayOut = flip(buff(delaySamples+1:delaySamples+frameSize,i));
         end
         % ------------------------------
 
-        
+
         % --------get value of delaySamples for each band--------
-        function s = getDelaySamples(~,fs,numFilters,speed1,speed2,freq1,freq2,dist,modeNum,cf,i)
-            s = 0; % initilize
+        function s = getDelaySamples(~,fs,numFilters,speed1,speed2,freq1,freq2,dist,modeNum,iCf,i)
+            % initilize output
+            s = 0;
 
-            % if speed1 == speed2
-            %     s = 
-            % 
-            % linear
-            if modeNum == 0
-                iSpeed = cf(i) * abs(speed1-speed2) / abs(freq2-freq1);
-                s = round(dist / iSpeed * fs);
-                
-            % linear (non-freqency-related) -- only depends on two speeds of sounds
-            elseif modeNum == 1
-                s = round(dist / abs(speed1-speed2) / numFilters * i  * fs);
+            % bypass -- when freq1 and freq2 is at the smaepotion, s is constant in each filter channel
+            if freq1 == freq2
+                s = round(dist / speed1 * fs);
 
-            % logarithmic (base of 2) ==== developing ====
-            elseif modeNum == 2
-                iSpeed = cf(i) * (log2(freq2)-log2(freq1)) / abs(freq2-freq1);
-                s = round(dist / iSpeed * fs);
+            else % when speed1 ~= speed2
+                % linear
+                if modeNum == 0
+                    iSpeed = iCf * abs(speed1-speed2) / abs(freq1-freq2);
+                    iSpeed = max(iSpeed,1); % make sure iSpeed does not become too small
+                    s = round(dist / iSpeed * fs);
 
-            % sine ==== developing ====
-            elseif modeNum == 3
-                p = abs(freq2 - freq1) / 2;
-                r = abs(speed2 - speed1);
-                iSpeed = cf(i) * abs((sin(cf(i)/p*pi) - (sin(cf(i)/p*pi)) * r)) / abs(freq2-freq1);
-                s = round(dist / iSpeed * fs);
+                    % linear (non-freqency-related) -- only depends on two speeds of sounds
+                elseif modeNum == 1
+                    s = round(dist / abs(speed1-speed2) / numFilters * i  * fs);
 
-            % stepwise -- only has 2 speeds of sounds devided by median of 2 freqencies
-            elseif modeNum == 4
-                if cf(i) <= median([freq1 freq2])
-                    s = round(dist / speed1 / numFilters * i * fs);
-                else % cf(i) > median([freq1 freq2])
-                    s = round(dist / speed2 / numFilters * i * fs);
+                    % logarithmic (base of 2) ==== developing ====
+                elseif modeNum == 2
+                    iSpeed = iCf * (log2(freq1)-log2(freq2)) / abs(freq1-freq2);
+                    iSpeed = max(iSpeed,1);
+                    s = round(dist / iSpeed * fs);
+
+                    % sine ==== developing ====
+                elseif modeNum == 3
+                    p = abs(freq1 - freq2) / 2;
+                    r = abs(speed1 - speed2);
+                    iSpeed = iCf * abs((sin(iCf/p*pi) - (sin(iCf/p*pi)) * r)) / abs(freq1-freq2);
+                    s = round(dist / iSpeed * fs);
+
+                    % stepwise -- only has 2 speeds of sounds devided by median of 2 freqencies
+                elseif modeNum == 4
+                    if iCf >= median([freq1 freq2])
+                        if freq1 >= freq2
+                            s = round(dist / speed1 * fs); % fit to the speed of the higher frequency
+                        else
+                            s = round(dist / speed2 * fs); % fit to the speed of the lower frequency
+                        end
+                    else % iCf < median([freq1 freq2])
+                        if freq1 >= freq2
+                            s = round(dist / speed2 * fs); % fit to the speed of the lower frequency
+                        else
+                            s = round(dist / speed1 * fs); % fit to the speed of the higher frequency
+                        end
+
+                    end
                 end
+
             end
         end
         %----------------------------------------------------
