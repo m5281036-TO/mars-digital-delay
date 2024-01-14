@@ -5,5 +5,6 @@ classdef OperatingMode < int8
         logarithmic (2)
         sigmoid (3)
         stepwise (4)
+        none (5)
     end
 end
