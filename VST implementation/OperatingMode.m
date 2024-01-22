@@ -1,10 +1,9 @@
 classdef OperatingMode < int8
     enumeration
         linear (0)
-        linear2 (1)
-        logarithmic (2)
-        sigmoid (3)
-        stepwise (4)
-        none (5)
+        logarithmic (1)
+        sigmoid (2)
+        stepwise (3)
+        none (4)
     end
 end

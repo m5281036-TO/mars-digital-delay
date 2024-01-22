@@ -46,7 +46,7 @@ classdef SDFtest_vst_v2 < audioPlugin
             'DisplayName','Distance','DisplayNameLocation','Above', ...
             'Layout',[3,3;4,3]), ...
             audioPluginParameter('DelayMode', ...% DelayMode
-            'Mapping',{'enum','Linear','Linear (non-freqency-related)', 'Logarithmic', 'Sigmoid', 'Stepwise', 'none'}, ...
+            'Mapping',{'enum','Linear','Logarithmic', 'Sigmoid', 'Stepwise', 'none'}, ...
             'DisplayName','Delay Mode','DisplayNameLocation','Above', ...
             'Layout',[6,3;7,3]), ...
             audioPluginParameter('Enable', ... % Enable
@@ -121,9 +121,11 @@ classdef SDFtest_vst_v2 < audioPlugin
             % --------delay signal in each channel--------
             for i = 1 : numFilters
                 % delaySamples = i * round(plugin.Distance);
-                delaySamples = getDelaySamples(plugin,fs,numFilters,speed1,speed2,freq1,freq2,dist,modeNum,cf(i),i);
+                delaySamples = getDelaySamples(plugin,fs,speed1,speed2,freq1,freq2,dist,modeNum,cf(i));
                 if delaySamples ~= 0 % delay signal except when 0
                     inDelayFiltered(:,i,:) = delaySignal(plugin,inFiltered(:,i,:),frameSize,delaySamples,numFilters,i);
+                else % if delaySamples == 0
+                    inDelayFiltered(:,i,:) = inFiltered(:,i,:);
                 end
             end
 
@@ -195,54 +197,75 @@ classdef SDFtest_vst_v2 < audioPlugin
 
 
         % --------get value of delaySamples for each band--------
-        function s = getDelaySamples(~,fs,numFilters,speed1,speed2,freq1,freq2,dist,modeNum,iCf,i)
-            % initilize output
+        function s = getDelaySamples(~,fs,speed1,speed2,freq1,freq2,dist,modeNum,iCf)
+            % initilization of the output
             s = 0;
 
             % bypass -- when freq1 and freq2 is at the smaepotion, s is constant in each filter channel
             if freq1 == freq2
                 s = round(dist / speed1 * fs);
 
-            else % when speed1 ~= speed2
+            else % when speed1 != speed2
                 % linear
                 if modeNum == 0
-                    iSpeed = iCf * abs(speed1-speed2) / abs(freq1-freq2);
-                    iSpeed = max(iSpeed,1); % make sure iSpeed does not become too small
-                    s = round(dist / iSpeed * fs);
+                    speed_iCf = iCf * abs(speed1-speed2) / abs(freq1-freq2);
+                    speed_iCf = max(speed_iCf,10); % make sure speed_iCf does not become too small
+                    s = round(dist / speed_iCf * fs);
 
                     % linear (non-freqency-related) -- only depends on two speeds of sounds
+                    % ====only for debag====
+                    % elseif modeNum == 1
+                    %     s = round(dist / abs(speed1-speed2) / numFilters * i  * fs);
+
+                    % logarithmic
                 elseif modeNum == 1
-                    s = round(dist / abs(speed1-speed2) / numFilters * i  * fs);
+                    freqRange = [freq1;freq2];
+                    speedRange = [speed1;speed2];
+                    % fit logarithm into linear model
+                    lm = fitlm(log(freqRange),speedRange);
+                    % extract estimated intercept and x1 from lm
+                    intercept = lm.Coefficients.Estimate(1);
+                    x1 = lm.Coefficients.Estimate(2);
+                    speed_iCf = x1 * log(iCf) + intercept;
+                    speed_iCf = max(speed_iCf,10); % make sure speed_iCf does not become too small
+                    s = round(dist / speed_iCf * fs);
 
-                    % logarithmic (base of 2) ==== developing ====
+                    % sigmoid
                 elseif modeNum == 2
-                    iSpeed = iCf * (log2(freq1)-log2(freq2)) / abs(freq1-freq2);
-                    iSpeed = max(iSpeed,1);
-                    s = round(dist / iSpeed * fs);
-
-                    % sigmoid ==== developing ====
-                elseif modeNum == 3
-                    p = abs(freq1 - freq2) / 2;
-                    r = abs(speed1 - speed2);
-                    iSpeed = iCf * abs((sin(iCf/p*pi) - (sin(iCf/p*pi)) * r)) / abs(freq1-freq2);
-                    s = round(dist / iSpeed * fs);
+                    % when center frequency is between freq1 and freq2
+                    if (min(freq1, freq2) <= iCf) && (iCf <= (max(freq1, freq2)))
+                        normalized_iCf = -10 + 20 * (iCf - min(freq1, freq2)) / abs(freq1 - freq2); % normalize the range of f into from -10 to 10
+                        fSigmoid = 1.0 ./ (1.0 + exp(- normalized_iCf));
+                        if freq1 < freq2
+                            speed_iCf = speed1 + (abs(speed1-speed2) * fSigmoid);
+                        else % freq1 > freq2
+                            speed_iCf = speed2 + (abs(speed1-speed2) * fSigmoid);
+                        end
+                    elseif iCf < min(freq1, freq2)
+                        % when center frequency below the frequency range
+                        speed_iCf = min(speed1,speed2);
+                    elseif iCf > max(freq1, freq2)
+                        % when center frequency above the frequency range
+                        speed_iCf = max(speed1,speed2);
+                    end
+                    s = round(dist / speed_iCf * fs);
 
                     % stepwise -- only has 2 speeds of sounds devided by median of 2 freqencies
-                elseif modeNum == 4
-                    if iCf >= median([freq1 freq2])
-                        if freq1 >= freq2
+                elseif modeNum == 3
+                    if iCf > median([freq1 freq2])
+                        if freq1 > freq2
                             s = round(dist / speed1 * fs); % fit to the speed of the higher frequency
                         else
                             s = round(dist / speed2 * fs); % fit to the speed of the lower frequency
                         end
                     else % iCf < median([freq1 freq2])
-                        if freq1 >= freq2
+                        if freq1 > freq2
                             s = round(dist / speed2 * fs); % fit to the speed of the lower frequency
                         else
                             s = round(dist / speed1 * fs); % fit to the speed of the higher frequency
                         end
                     end
-                elseif modeNum == 5 % none
+                elseif modeNum == 4 % none
                     s = 0;
                 end
             end
@@ -264,34 +287,19 @@ classdef SDFtest_vst_v2 < audioPlugin
             switch plugin.DelayMode
                 case OperatingMode.linear
                     modeNum = 0;
-                case OperatingMode.linear2
-                    modeNum = 1;
+                    % case OperatingMode.linear2
+                    %     modeNum = 1;
                 case OperatingMode.logarithmic
-                    modeNum = 2;
+                    modeNum = 1;
                 case OperatingMode.sigmoid
-                    modeNum = 3;
+                    modeNum = 2;
                 case OperatingMode.stepwise
+                    modeNum = 3;
+                case OperatingMode.none
                     modeNum = 4;
             end
         end
         % -----------------------------------------------------
 
-
-        % --------parameter modification--------
-        % function set.Freq_F1(plugin,val)
-        %     plugin.Freq_F1 = val;
-        % end
-        % function set.Freq_F2(plugin,val)
-        %     plugin.Freq_F2 = val;
-        % end
-        % function set.Speed_F1(plugin,val)
-        %     plugin.Speed_F1 = val;
-        % end
-        % function set.Speed_F2(plugin,val)
-        %     plugin.Speed_F2 = val;
-        % end
-        % function set.Distance (plugin, val)
-        %     plugin.Distance = val;
-        % end
     end
 end
