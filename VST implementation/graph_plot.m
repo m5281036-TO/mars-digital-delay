@@ -4,10 +4,11 @@ p = plot(x,linear(x));
 
 p.LineWidth = 1;
 p.Color = [0.1 0.1 0.1];
-fontsize(18,"points")
+fontsize(20,"points")
 
 xlabel("Frequency (Hz)")
 ylabel("Speed of Sound (m/s)")
+
 
 xticks([80 170])
 xticklabels({"freq1", "freq2"})
@@ -26,7 +27,7 @@ p = plot(x,y);
 
 p.LineWidth = 1;
 p.Color = [0.1 0.1 0.1];
-fontsize(18,"points")
+fontsize(20,"points")
 
 xlabel("Frequency (Hz)")
 ylabel("Speed of Sound (m/s)")
@@ -45,19 +46,22 @@ saveas(gcf,'./figures/logarithm_spectral.png');
 % sigmoid
 x = -10:0.05:10;
 y = sigmoid(x);
+
 p = plot(x,y);
 
 p.LineWidth = 1;
 p.Color = [0.1 0.1 0.1];
-fontsize(18,"points")
+fontsize(20,"points")
 
+xlim([-18 18])
 xlabel("Frequency (Hz)")
 ylabel("Speed of Sound (m/s)")
 
-xticks([-2 2.5])
+xticks([-10 10])
 xticklabels({"freq1", "freq2"})
 
-yticks([sigmoid(-2) sigmoid(2.5)]);
+ylim([sigmoid(-10)-0.2 sigmoid(10)+0.2])
+yticks([sigmoid(-10) sigmoid(10)]);
 yticklabels({"speed1", "speed2"})
 grid on;
 
@@ -73,7 +77,7 @@ y(x < -0.5) = -0.7;
 p = plot(x,y);
 p.LineWidth = 1;
 p.Color = [0.1 0.1 0.1];
-fontsize(18,"points")
+fontsize(20,"points")
 
 xlabel("Frequency (Hz)")
 ylabel("Speed of Sound (m/s)")
@@ -95,7 +99,7 @@ end
 
 
 function y = sigmoid(x)
-y  =1.0 ./ (1.0 + exp(-x));
+y  = 1.0 ./ (1.0 + exp(-x));
 end
 
 function y = step(x)

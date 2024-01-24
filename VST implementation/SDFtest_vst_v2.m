@@ -219,14 +219,9 @@ classdef SDFtest_vst_v2 < audioPlugin
 
                     % logarithmic
                 elseif modeNum == 1
-                    freqRange = [freq1;freq2];
-                    speedRange = [speed1;speed2];
-                    % fit logarithm into linear model
-                    lm = fitlm(log(freqRange),speedRange);
-                    % extract estimated intercept and x1 from lm
-                    intercept = lm.Coefficients.Estimate(1);
-                    x1 = lm.Coefficients.Estimate(2);
-                    speed_iCf = x1 * log(iCf) + intercept;
+                    slope = (speed2 - speed1)/(log(freq2) - log(freq1));
+                    y_intercept = speed1 -(slope * log(freq1));
+                    speed_iCf = slope * log(iCf) + y_intercept;
                     speed_iCf = max(speed_iCf,10); % make sure speed_iCf does not become too small
                     s = round(dist / speed_iCf * fs);
 
@@ -244,7 +239,7 @@ classdef SDFtest_vst_v2 < audioPlugin
                     elseif iCf < min(freq1, freq2)
                         % when center frequency below the frequency range
                         speed_iCf = min(speed1,speed2);
-                    elseif iCf > max(freq1, freq2)
+                    else % when iCf > max(freq1, freq2)
                         % when center frequency above the frequency range
                         speed_iCf = max(speed1,speed2);
                     end
