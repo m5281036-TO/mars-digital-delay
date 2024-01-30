@@ -5,13 +5,13 @@
 	<key>BuildMachineOSBuild</key>
 	<string>20G1427</string>
 	<key>CFBundleDisplayName</key>
-	<string>SDFtest_vst</string>
+	<string>mars_digital_delay</string>
 	<key>CFBundleExecutable</key>
-	<string>SDFtest_vst</string>
+	<string>mars_digital_delay</string>
 	<key>CFBundleIdentifier</key>
-	<string>Takuto-Odaira.SDFtest-vst</string>
+	<string>Takuto-Odaira.mars-digital-delay</string>
 	<key>CFBundleName</key>
-	<string>SDFtest_vst</string>
+	<string>mars_digital_delay</string>
 	<key>CFBundlePackageType</key>
 	<string>BNDL</string>
 	<key>CFBundleShortVersionString</key>

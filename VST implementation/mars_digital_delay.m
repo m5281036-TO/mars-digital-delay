@@ -1,4 +1,4 @@
-classdef SDFtest_vst_v2 < audioPlugin
+classdef mars_digital_delay < audioPlugin
     properties
         Freq_F1 = 200;
         Freq_F2 = 2000;
@@ -68,7 +68,7 @@ classdef SDFtest_vst_v2 < audioPlugin
 
     methods
         % --------constructor---------
-        function plugin = SDFtest_vst_v2
+        function plugin = mars_digital_delay
             % get sample rate of input
             plugin.pSR = getSampleRate(plugin);
             fs = plugin.pSR;
